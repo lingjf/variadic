@@ -1,4 +1,10 @@
 
+
+/* This was inspired by BOOST's PP_CAT macro. Using such a thing avoids
+   to define multiple levels of expansion for each macro. */
+#define PP_X0()
+#define PP_X1(_1) _1
+
 #define PP_CAT2(_1, _2) _PP_INTERNAL_CAT2(_1, _2)
 #define _PP_INTERNAL_CAT2(_1, _2) _1##_2
 
@@ -32,21 +38,62 @@ _PP_INTERNAL_STRINGIZE(X1)  ==> "X1"
 
 PP_NARG--------------------------------------------------
 
-#define PP_NARG(...) _PP_INTERNAL_17TH(_, ##__VA_ARGS__, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
-#define PP_HAS_COMMA(...) _PP_INTERNAL_17TH(_, ##__VA_ARGS__, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0)
-#define _PP_INTERNAL_17TH(_, _15, _14, _13, _12, _11, _10, _9, _8, _7, _6, _5, _4, _3, _2, _1, _0, ...) _0
+##__VA_ARGS__ is not standard!
 
-PP_NARG()  ==> 0
-PP_NARG(a)  ==> 1
-PP_NARG(a, b)  ==> 2
-PP_NARG(a, b, int c)  ==> 3
-PP_NARG(a, b, int c, void (*d)(int))  ==> 4
+#define _PP_INTERNAL_16TH(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, ...) _16
+#define _PP_NARGS(...) _PP_INTERNAL_16TH(__VA_ARGS__, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
+#define _PP_HAS_COMMA(...) _PP_INTERNAL_16TH(__VA_ARGS__, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0)
 
-PP_HAS_COMMA()  ==> 0
-PP_HAS_COMMA(a)  ==> 0
-PP_HAS_COMMA(a, b)  ==> 1
-PP_HAS_COMMA(a, b, int c)  ==> 1
-PP_HAS_COMMA(a, b, int c, void (*d)(int))  ==> 1
+#define _PP_COMMA(...) ,
+
+#define PP_0ARGS(...) _PP_0ARGS(_PP_HAS_COMMA(__VA_ARGS__),                  \
+                                _PP_HAS_COMMA(_PP_COMMA __VA_ARGS__),        \
+                                _PP_HAS_COMMA(__VA_ARGS__()),                \
+                                _PP_HAS_COMMA(_PP_COMMA __VA_ARGS__()))
+
+#define _PP_INTERNAL_CAT5(_1, _2, _3, _4, _5) _1##_2##_3##_4##_5
+#define _PP_0ARGS(_1, _2, _3, _4) _PP_HAS_COMMA(_PP_INTERNAL_CAT5(_PP_0ARGS_CASE_, _1, _2, _3, _4))
+
+#define _PP_0ARGS_CASE_0000 _PP_0ARGS_CASE_0000
+#define _PP_0ARGS_CASE_0001 ,
+#define _PP_0ARGS_CASE_0010 _PP_0ARGS_CASE_0010
+#define _PP_0ARGS_CASE_0011 _PP_0ARGS_CASE_0011
+#define _PP_0ARGS_CASE_0100 _PP_0ARGS_CASE_0100
+#define _PP_0ARGS_CASE_0101 _PP_0ARGS_CASE_0101
+#define _PP_0ARGS_CASE_0110 _PP_0ARGS_CASE_0110
+#define _PP_0ARGS_CASE_0111 _PP_0ARGS_CASE_0111
+#define _PP_0ARGS_CASE_1000 _PP_0ARGS_CASE_1000
+#define _PP_0ARGS_CASE_1001 _PP_0ARGS_CASE_1001
+#define _PP_0ARGS_CASE_1010 _PP_0ARGS_CASE_1010
+#define _PP_0ARGS_CASE_1011 _PP_0ARGS_CASE_1011
+#define _PP_0ARGS_CASE_1100 _PP_0ARGS_CASE_1100
+#define _PP_0ARGS_CASE_1101 _PP_0ARGS_CASE_1101
+#define _PP_0ARGS_CASE_1110 _PP_0ARGS_CASE_1110
+#define _PP_0ARGS_CASE_1111 _PP_0ARGS_CASE_1111
+
+#define PP_NARGS(...) PP_IF(PP_0ARGS(__VA_ARGS__), 0, _PP_NARGS(__VA_ARGS__))
+
+
+
+PP_HAS_COMMA()  ==> "PP_HAS_COMMA()"
+PP_HAS_COMMA(a)  ==> "PP_HAS_COMMA(a)"
+PP_HAS_COMMA(a, b)  ==> "PP_HAS_COMMA(a, b)"
+PP_HAS_COMMA(a, b, int c)  ==> "PP_HAS_COMMA(a, b, int c)"
+PP_HAS_COMMA(a, b, int c, void (*d)(int))  ==> "PP_HAS_COMMA(a, b, int c, void (*d)(int))"
+
+
+_PP_NARGS()  ==> "_PP_NARGS()"
+_PP_NARGS(a)  ==> "_PP_NARGS(a)"
+_PP_NARGS(a, b)  ==> "_PP_NARGS(a, b)"
+_PP_NARGS(a, b, int c)  ==> "_PP_NARGS(a, b, int c)"
+_PP_NARGS(a, b, int c, void (*d)(int))  ==> "_PP_NARGS(a, b, int c, void (*d)(int))"
+
+PP_NARGS()  ==> "PP_NARGS()"
+PP_NARGS(a)  ==> "PP_NARGS(a)"
+PP_NARGS(a, b)  ==> "PP_NARGS(a, b)"
+PP_NARGS(a, b, int c)  ==> "PP_NARGS(a, b, int c)"
+PP_NARGS(a, b, int c, void (*d)(int))  ==> "PP_NARGS(a, b, int c, void (*d)(int))"
+
 
 PP_HEAD--------------------------------------------------
 
@@ -63,7 +110,7 @@ PP_TAIL(a, b, int c, void (*d)(int))  ==> b, int c, void (*d)(int)
 
 PP_VARIADIC_CALL--------------------------------------------------
 
-#define PP_VARIADIC_CALL(_Macro, ...) PP_CAT2(_Macro, PP_NARG(__VA_ARGS__))(__VA_ARGS__)
+#define PP_VARIADIC_CALL(_Macro, ...) PP_X1(PP_CAT2(_Macro, PP_NARGS(__VA_ARGS__))(__VA_ARGS__))
 
 PP_VARIADIC_CALL(X, int a, char b, double c)
 
