@@ -267,3 +267,93 @@ PP_FOREACH--------------------------------------------------
 PP_FOREACH(X, _, (1,2,3,4,5,6,7,8,9))
 PP_REPEAT(Y, _, 9)
 
+
+
+#include "h2_pp.hpp"
+
+
+/*
+ 1. 每次宏展开的结果会被重复扫描，直到没有任何可展开的宏为止。
+ 2. 宏不支持递归:每展开一个宏，都会记住这次展开，在这个宏展开的结果及其后续展开中，不再对相同的宏做展开。所谓相同的宏是指名字相同，不包括参数。
+ 3. 带参数的宏，先对参数做展开，除非宏定义体中包含#或##
+   a) #表示将后续标识符转换为字符串
+   b) ##表示将两个标识符连接成一个标识符
+   c) 注意参数展开的结果中即使有逗号（,）也不视为参数的分隔符
+ 4. 如果宏定义中带有参数，而代码中出现同样标识符时没有参数，不视为宏。
+ 宏从内向外展开
+*/
+
+//  object-like prescan
+//    O1: 展开宏(替换)。新树{}
+//    O2: 对新展开的宏体进行第二次扫描,并继续展开。继承树{O1}
+//    O3: 扫描后面一个Token,如果组成function-like的宏,并不在树{O1,O2}中,则使用树{O3}展开。
+
+#define FOOa 1 FOOa BARa
+#define BARa() FOOa
+FOOa()() // FOOa{}
+// -> FOOa{}()()
+// -> 1 FOOa{FOOa} BARa{FOOa}()()
+// -> 1 FOOa{FOOa} FOOa{BARa}() // 使用树{O3}展开
+// -> 1 FOOa{FOOa} 1 FOOa{BARa,FOOa} BARa{BARa,FOOa}()
+
+/* function-like prescan
+   F1: 当宏参数被放进宏体前, 宏参数会首先被全部展开。
+   F2: 当展开后的宏参数被放进宏体后, 对新展开的宏体进行第二次扫描,不在树{F1}中的,则使用树{宏函数名}(新树)继续展开。
+   F3: 扫描后面一个Token, 如果组成function-like的宏,并不在树{F1,F2}中,则使用树{F3}(新树)展开。
+*/
+
+#define BARb() FOOb
+#define FOOb() 1 BARb()
+FOOb()()
+// -> FOOb{}()()
+// -> 1 BARb{FOOb}()()
+// -> 1 FOOb{FOOb,BARb}() // FOOb是function-like宏,但在树{F1,F2}中,所以不再展开。
+
+#define BARc() FOOc
+#define FOOc() 1 BARc
+FOOc()()() 
+// -> FOOc{}()()() 
+// -> 1 BARc{FOOc}()()
+// -> 1 FOOc{BARc}() // 使用树{F3}展开 
+// -> 1 1 BARc{BARc,FOOc} 
+
+#define BARd() FOOd
+#define FOOd() 1 BARd()()
+FOOd()           
+// -> FOOd{}()            
+// -> 1 BARd{FOOd}()()
+// -> 1 FOOd{FOOd,BARd}()
+EVAL1(FOOd())  
+// -> EVAL1{}(FOOd{}()) 
+// -> EVAL1{}(1 BARd{FOOd}()())
+// -> EVAL1(1 FOOd{FOOd,BARd}())
+// -> 1 FOOd{FOOd,BARd,EVAL1}()   
+EVAL1(EVAL1(FOOd()))
+
+
+#define BARe() FOOe
+#define FOOe() 1 H2PP_DEFER(BARe)()()
+
+FOOe()            
+// -> FOOe{}()            
+// -> 1 DEFER{FOOe}(BARe{FOOe})()()
+// -> 1 BARe{FOOe,DEFER}()()
+EVAL1(FOOe())          
+// -> EVAL1{}(FOOe{}())           
+// -> EVAL1{}(1 DEFER{FOOe}(BARe{FOOe})()())
+// -> EVAL1{}(1 BARe{FOOe,DEFER}()())
+// -> 1 BARe{FOOe,DEFER,EVAL1}()() //第二次扫描可展开
+// -> 1 FOOe{EVAL1}() // 使用新树{F3}展开 
+// -> 1 1 DEFER{FOOe}(BARe{EVAL1,FOOe})()()
+// -> 1 1 BARe{EVAL1,FOOe,DEFER}()()
+EVAL1(EVAL1(FOOe()))
+// -> EVAL1{}(1 1 BARe{EVAL1,FOOe,DEFER}()())
+// -> 1 1 BARe{EVAL1,FOOe,DEFER}()()
+// -> 1 1 FOOe{EVAL1}()
+// -> 1 1 1 DEFER(BARe{EVAL1,FOOe})()()
+// -> 1 1 1 BARe{EVAL1,FOOe,DEFER}()()
+
+
+
+
+
