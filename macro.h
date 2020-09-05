@@ -269,9 +269,7 @@ PP_REPEAT(Y, _, 9)
 
 
 
-#include "h2_pp.hpp"
-
-
+  
 /*
  1. 每次宏展开的结果会被重复扫描，直到没有任何可展开的宏为止。
  2. 宏不支持递归:每展开一个宏，都会记住这次展开，在这个宏展开的结果及其后续展开中，不再对相同的宏做展开。所谓相同的宏是指名字相同，不包括参数。
@@ -297,17 +295,26 @@ FOOa()() // FOOa{}
 // -> 1 FOOa{FOOa} 1 FOOa{BARa,FOOa} BARa{BARa,FOOa}()
 
 /* function-like prescan
-   F1: 当宏参数被放进宏体前, 宏参数会首先被全部展开。
-   F2: 当展开后的宏参数被放进宏体后, 对新展开的宏体进行第二次扫描,不在树{F1}中的,则使用树{宏函数名}(新树)继续展开。
-   F3: 扫描后面一个Token, 如果组成function-like的宏,并不在树{F1,F2}中,则使用树{F3}(新树)展开。
+   Rule1: 当宏参数被放进宏体前, 宏参数会首先被全部展开。
+   Rule2: 当展开后的宏参数被放进宏体后, 对新展开的宏体进行第二次扫描,并使用树{宏函数名}(新树)继续展开。
+   Rule3: 扫描后面一个Token, 如果组成function-like的宏,并不在树{F1,F2}中,则使用树{F3}(新树)展开。
 */
+
+// verify Rule2
+#define ID(_1) _1
+ID(ID(ID(1))) // -> 1
+
+#define IE(...) __VA_ARGS__
+IE(IE(IE(1, 2), 3), 4) // -> 1, 2, 3, 4
+
+
 
 #define BARb() FOOb
 #define FOOb() 1 BARb()
 FOOb()()
-// -> FOOb{}()()
-// -> 1 BARb{FOOb}()()
-// -> 1 FOOb{FOOb,BARb}() // FOOb是function-like宏,但在树{F1,F2}中,所以不再展开。
+// -> FOOb{}()()  // 初始。 第一次扫描。
+// -> 1 BARb{FOOb}()()  // 替换 FOOb() 完成。 第二次扫描。
+// -> 1 FOOb{FOOb,BARb}() // 替换 BARb()完成。 FOOb是function-like宏,但在树中,所以不再展开。
 
 #define BARc() FOOc
 #define FOOc() 1 BARc
